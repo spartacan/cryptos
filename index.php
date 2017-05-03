@@ -1,7 +1,7 @@
+
 <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 <script type="text/javascript">
-	var ticker = <?=file_get_contents('ticker');?>;
-	
+	var ticker = <?= file_get_contents('https://api.coinmarketcap.com/v1/ticker/') ?>;
 	function add_allocation (symbol, quantity, target)
 	{
 		var div = $('<div class="coin" />');
@@ -62,6 +62,9 @@
 		
 		var suggestion = $('<div data-field="suggestion" class="inline">0</div>');
 		suggestion.appendTo(div);
+
+		var btcprice = $('<div data-field="btc_price" class="inline">0</div>');
+		btcprice .appendTo(div);
 		
 		var price = $('<div data-field="price" class="inline">0</div>');
 		price.appendTo(div);
@@ -82,9 +85,9 @@
 		div.attr('data-symbol', symbol);
 		
 		var coin = get_from_ticker(symbol);
-		var link = $('<a/>').attr('href', link_to_coin(coin.id)).attr('target', '_blank').html(coin.name);
-		
-		div.children('div[data-field="name"]').append($(image(coin.id))).append(link);
+		var slug = coin.name.replace(/\s+/g, '-').toLowerCase();
+		var name = '<a href="https://coinmarketcap.com/currencies/' + slug + '" target="_blank">' + coin.name + '</a>';
+		div.children('div[data-field="name"]').html(image(coin.id) + name);
 		
 		if (coin.symbol)
 			$(this).val(coin.symbol);
@@ -119,8 +122,9 @@
 				target_total += parseFloat(allocation.target);
 		});
 		
+		console.log(target_total);
 		if (target_total != 100)
-			$('#target_total').html('(sum='+target_total+'%)').addClass('negative');
+			$('#target_total').html('Target Sum = '+target_total+'%').addClass('negative');
 		else
 			$('#target_total').html('').removeClass('negative');
 		
@@ -155,18 +159,18 @@
 			var value = allocation.quantity * coin.price_usd;
 			var actual = 100 * value / total_value;
 			var suggestion = (allocation.target - actual) / 100 * total_value / coin.price_usd;
-			var drift = Math.abs(allocation.target - actual);
-			var drift_color = 'hsl(0, 100%, '+Math.round(drift>5?50:10*drift)+'%)';
 			
-			$(this).children('div[data-field="actual"]').html(actual.toFixed(2)+'%').css('color', drift_color);
-			$(this).children('div[data-field="suggestion"]').html((suggestion>0?'+':'') + suggestion.toFixed(2) + ' ' + coin.symbol);
-			$(this).children('div[data-field="price"]').html(coin.price_usd);
+			$(this).children('div[data-field="actual"]').html(actual.toLocaleString('en-US', { maximumFractionDigits: 1 })+'%');
+			$(this).children('div[data-field="suggestion"]').html((suggestion>0?'+':'') + suggestion.toLocaleString('en-US'));
+			$(this).children('div[data-field="suggestion"]').removeClass('positive').removeClass('negative').addClass(suggestion > 0 ? 'positive' : 'negative');
+			$(this).children('div[data-field="btc_price"]').html(coin.price_btc);
+			$(this).children('div[data-field="price"]').html(parseFloat(coin.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2 }));
 			$(this).children('div[data-field="change"]').html((coin.percent_change_24h > 0 ? '+' : '') + coin.percent_change_24h + '%');
 			$(this).children('div[data-field="change"]').removeClass('positive').removeClass('negative').addClass(coin.percent_change_24h > 0 ? 'positive' : 'negative');
-			$(this).children('div[data-field="value"]').html(parseInt(value));
+			$(this).children('div[data-field="value"]').html(parseInt(value).toLocaleString('en-US'));
 		});
 		
-		$('#grand_total span').html(total_value.toFixed(2));
+		$('#grand_total span').html(parseInt(total_value).toLocaleString('en-US'));
 		
 		store();
 	}
@@ -258,14 +262,9 @@
 		return '<img src="https://files.coinmarketcap.com/static/img/coins/16x16/'+coin_id+'.png" />';
 	}
 	
-	function link_to_coin (coin_id)
-	{
-		return 'http://www.google.com/search?q=site:coinmarketcap.com%20'+coin_id+'&btnI';
-	}
-	
 	$(document).ready(function () {
 		index_ticker();
-		$('#add_allocation').click(add_allocation);
+		$('#add_allocation').click(function() { add_allocation() });
 		load();
 		add_allocation();
 	});
@@ -276,13 +275,28 @@
 		font-family: Arial;
 		line-height: 1.3;
 	}
-	#header > div {
+	a {
+		color: blue;
+		text-decoration: none;
+	}
+	a:hover {
+		text-decoration: underline;
+	}
+	#header, #coins {
+		white-space: nowrap;
+		font-size: 0;
+	}
+	#header > div, .coin > * {
 		display: inline-block;
-		width: 150px;
+		width: 100px;
+		font-size: 13px;
+		margin: 5px;
+	}
+	#header {
+		font-weight: bold;
 	}
 	input {
-		width: 150px;
-		margin-right: 5px;
+		padding: 3px;
 	}
 	input.hint {
 		color: #ccc;
@@ -290,10 +304,6 @@
 	}
 	input[data-field="target"]:after {
 		content: '%';
-	}
-	div.inline {
-		display: inline-block;
-		width: 150px;
 	}
 	div[data-field="price"]:before,
 	div[data-field="value"]:before {
@@ -303,13 +313,17 @@
 		cursor: pointer;
 		color: gray;
 	}
+
 	input[data-field="symbol"],
-	#header > div[data-field="symbol"] {
-		width: 70px;
-	}
 	input[data-field="target"],
-	#header > div[data-field="target"] {
-		width: 80px;
+	div[data-field="symbol"],
+	div[data-field="target"],
+	div[data-field="actual"]
+	{
+		width: 70px !important;
+	}
+	div[data-field="name"] {
+		width: 150px !important;
 	}
 	#grand_total span:before {
 		content: '$';
@@ -328,24 +342,23 @@
 	#coins > div:nth-child(odd) {
 		background: #eee;
 	}
-	a {
-		text-decoration: none;
-	}
 </style>
 
 <div id="header">
-	<div data-field="coin">Coin</div>
+	<div data-field="name"></div>
 	<div data-field="symbol">Symbol</div>
 	<div data-field="quantity">Quantity</div>
-	<div data-field="target">Target Alloc. <span id='target_total'></span></div>
-	<div data-field="actual">Actual Alloc.</div>
+	<div data-field="target">Target %</div>
+	<div data-field="actual">Actual %</div>
 	<div data-field="suggestion">Suggestion</div>
+	<div data-field="btc_price">BTC Price</div>
 	<div data-field="price">Price</div>
-	<div data-field="24h_change">24h Change</div>
+	<div data-field="change">24h Change</div>
 	<div data-field="value">Total Value</div>
 </div>
 <div id="coins"></div>
 
-<div id="add_allocation">[+]</div>
-
-<div id="grand_total">Grand Total: <span>0</span></div>
+<div id="add_allocation">[ + ]</div>
+<br>
+<div id='target_total'></div>
+<div id="grand_total"><b>Grand Total:</b> <span>0</span></div>
