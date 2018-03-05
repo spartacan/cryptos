@@ -1,3 +1,13 @@
+<?php
+$isAdmin = ($_SERVER['REMOTE_ADDR'] == '74.104.152.70');
+
+if ($isAdmin && $_POST['cheung'])
+{
+	file_put_contents('cheung/allocations.json', $_POST['cheung']);
+	exit;
+}
+?>
+
 <html>
 <head>
 <title>Crypto Portfolio</title>
@@ -94,7 +104,7 @@
 		var symbol = $(this).val();
 		div.attr('data-symbol', symbol);
 		
-		var coin = get_from_ticker(symbol);
+		var coin = get_from_ticker(symbol);console.log(coin);
 		var link = $('<a/>').attr('href', link_to_coin(coin.id)).attr('target', '_blank').html(coin.name);
 		div.children('div[data-field="name"]').html($(image(coin.id))).append(link);
 		
@@ -302,7 +312,7 @@
 	
 	function image (coin_id)
 	{
-		return '<img src="https://files.coinmarketcap.com/static/img/coins/16x16/'+coin_id+'.png" />';
+		return '<img src="https://coincheckup.com/images/coins/' + coin_id + '.png" />';
 	}
 	
 	function link_to_coin (coin_id)
@@ -316,10 +326,13 @@
 		$('#add_allocation').click(function() { add_allocation() });
 		load();
 		add_allocation();
+<?php if ($isAdmin): ?>
+		$.post('index.php', { cheung: JSON.stringify(JSON.parse(localStorage.getItem('allocations'))) } );
+<?php endif; ?>
 	}
 
 	$(document).ready(function () {
-		$.get('https://api.coinmarketcap.com/v1/ticker/?limit=300', function(data) {
+		$.get('https://api.coinmarketcap.com/v1/ticker/?limit=500', function(data) {
 			ticker = data;
 			init();
 		});
@@ -387,6 +400,9 @@
 		font-size: 13px;
 		width: 160px !important;
 		text-align: left !important;
+	}
+	div[data-field="name"] img {
+		width: 16px;
 	}
 	input[data-field="symbol"],
 	div[data-field="symbol"] {
